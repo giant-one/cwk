@@ -1,0 +1,22 @@
+{
+    "name": "xuce/cwk",
+    "description": "仿worker实现一个socket框架",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "徐策",
+            "email": "xucece2014@163.com"
+        }
+    ],
+    "require": {
+        "php": ">=5.3"
+    },
+    "autoload": {
+        "psr-4": {
+            "System\\": "./System"
+        }
+    },
+    "minimum-stability": "dev",
+    "require": {}
+}
