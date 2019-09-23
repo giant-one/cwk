@@ -17,6 +17,8 @@ class Core
     protected static $_pidFile = '';
     protected static $_pid = null;
     protected static $_startTime = null;
+    protected static $_daemon = false;
+    protected static $_test = null;
     public function __construct()
     {
 
@@ -45,7 +47,7 @@ class Core
 
     public static function checkExtension()
     {
-        if (!extension_loaded('pcntl')) {
+        if( !extension_loaded('pcntl') ) {
             exit('请安装pcntl扩展'.PHP_EOL);
         }
         if( !extension_loaded('sockets') ){
@@ -74,6 +76,8 @@ class Core
         try {
             switch ($argv[1]) {
                 case 'start' :
+                    $command2 = isset($argv[2]) ? $argv[2] : '';
+                    if ($command2 == '-d') static::$_daemon = true;
                     static::start();
                     break;
                 case 'restart':
@@ -81,6 +85,7 @@ class Core
                 case 'reload':
                     break;
                 case 'stop':
+                    static::stop();
                     break;
                 case 'status':
                     break;
@@ -92,6 +97,12 @@ class Core
 
     public static function start()
     {
+        /**
+         * 如果是守护进程方式
+         */
+        if (static::$_daemon) {
+            self::enableDomain();
+        }
         cli_set_process_title('cwk master process');
         file_put_contents(static::$_pidFile,posix_getpid());
         static::$_pid = posix_getpid();
@@ -99,9 +110,10 @@ class Core
             static::forkOneWorker();
         }
 
-
         static::$_startTime = date('Y-m-d H:i:s');
+
         self::printStr();
+
         while (true) {
             pcntl_signal_dispatch();
             foreach (static::$_workerIdMap as $workerId => $status) {
@@ -115,8 +127,13 @@ class Core
             }
             sleep(1);
         }
-        echo "master process stop\n";
+        echo "Stopped Success\n";
         exit;
+    }
+
+    public static function stop()
+    {
+        posix_kill((int)file_get_contents(static::$_pidFile),SIGINT);
     }
 
     public static function forkOneWorker()
@@ -146,6 +163,7 @@ class Core
     {
         switch ($signal) {
             case SIGINT :
+                echo "Stopping...\n";
                 if (posix_getpid() == static::$_pid) {
                     foreach (static::$_workerIdMap as $workerId => $status) {
                         posix_kill($workerId,SIGTERM);
@@ -154,6 +172,8 @@ class Core
                     posix_kill(posix_getpid(),SIGTERM);
                 }
                 break;
+            case SIGTERM:
+            default:
         }
     }
 
@@ -168,7 +188,9 @@ class Core
         $display_str .= "当前子进程数: <red>" . count(static::$_workerIdMap) . "个，PID:(" . implode(',', array_keys(static::$_workerIdMap)) . ")</red>" . PHP_EOL;
         $display_str .= "当前主进程PID: <red>" . posix_getpid() . "</red>" . PHP_EOL;
         $display_str .= "-------------------<green> By:XuCe </green>---------------" . PHP_EOL;
-        $display_str .= "<yellow>Press Ctrl+C to quit.</yellow>" . PHP_EOL;
+        if (!static::$_daemon) {
+            $display_str .= "<yellow>Press Ctrl+C to quit.</yellow>" . PHP_EOL;
+        }
         $display_str = self::replaceStr($display_str);
         echo $display_str;
 
@@ -187,5 +209,30 @@ class Core
         $str = str_replace(array('<n>', '<white>', '<green>', '<yellow>', '<red>', '<purple>'), array($line, $white, $green, $yellow, $red, $purple), $str);
         $str = str_replace(array('</n>', '</white>', '</green>', '</yellow>', '</red>', '</purple>'), $end, $str);
         return $str;
+    }
+
+    public function enableDomain()
+    {
+        $pid = pcntl_fork();
+        if( $pid < 0 ){
+            exit('fork error.');
+        } else if( $pid > 0 ) {
+            // 主进程退出
+            exit();
+        }
+        //生成新的会话id
+        if( !posix_setsid() ){
+            exit('setsid error.');
+        }
+
+        //再次fork
+        $pid = pcntl_fork();
+        if( $pid  < 0 ){
+            exit('fork error');
+        } else if( $pid > 0 ) {
+            // 主进程退出
+            exit;
+        }
+        static::initSignal();
     }
 }
