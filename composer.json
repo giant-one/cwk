@@ -1,6 +1,6 @@
 {
     "name": "xuce/cwk",
-    "description": "仿worker实现一个socket框架",
+    "description": "仿worker实现一个网络库",
     "type": "library",
     "license": "MIT",
     "authors": [
@@ -17,6 +17,5 @@
             "System\\": "./System"
         }
     },
-    "minimum-stability": "dev",
-    "require": {}
+    "minimum-stability": "dev"
 }
