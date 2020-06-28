@@ -178,7 +178,7 @@ class Core
     }
 
     //打印到屏幕
-    public function printStr()
+    public static function printStr()
     {
         $display_str = '';
         $display_str .= "-------------------<white> cwk </white>-------------------" . PHP_EOL;
@@ -197,7 +197,7 @@ class Core
     }
 
     //文字替换
-    public function replaceStr($str)
+    public static function replaceStr($str)
     {
         $line = "\033[1A\n\033[K";
         $white = "\033[47;30m";
@@ -211,7 +211,7 @@ class Core
         return $str;
     }
 
-    public function enableDomain()
+    public static function enableDomain()
     {
         $pid = pcntl_fork();
         if( $pid < 0 ){
