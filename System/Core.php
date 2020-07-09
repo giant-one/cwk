@@ -11,7 +11,8 @@ namespace System;
 
 class Core
 {
-    protected static $count = 3;
+    public static $logFile = '';
+    public static $count = 3;
     protected static $version = '1.0.0';
     protected static $_workerIdMap = [];
     protected static $_pidFile = '';
@@ -19,6 +20,7 @@ class Core
     protected static $_startTime = null;
     protected static $_daemon = false;
     protected static $_test = null;
+
     public function __construct()
     {
 
@@ -35,8 +37,13 @@ class Core
 
     public static function init()
     {
-        if (empty(static::$_pidFile)) {
-            static::$_pidFile = __DIR__.'/../cwk.pid';
+        //pid文件
+        if ( empty(static::$_pidFile) ) {
+            static::$_pidFile = __DIR__ . '/../cwk.pid';
+        }
+        //日志文件
+        if ( empty(static::$logFile)) {
+            static::$logFile = __DIR__ . '/../cwk.log';
         }
     }
 
@@ -101,8 +108,9 @@ class Core
          * 如果是守护进程方式
          */
         if (static::$_daemon) {
-            self::enableDomain();
+            self::daemonize();
         }
+        static::initSignal();
         cli_set_process_title('cwk master process');
         file_put_contents(static::$_pidFile,posix_getpid());
         static::$_pid = posix_getpid();
@@ -211,28 +219,32 @@ class Core
         return $str;
     }
 
-    public static function enableDomain()
+    public static function daemonize()
     {
+        //设置umask掩码，umask与chmod权限相关
+        \umask(0);
+
         $pid = pcntl_fork();
-        if( $pid < 0 ){
-            exit('fork error.');
-        } else if( $pid > 0 ) {
-            // 主进程退出
-            exit();
-        }
-        //生成新的会话id
-        if( !posix_setsid() ){
-            exit('setsid error.');
+
+        if ($pid < 0) {
+            throw new Exception('fork fail');
+        } elseif ($pid > 0) {
+            exit(0);
         }
 
-        //再次fork
+        //生成新的会话id
+        if( -1 === \posix_setsid() ){
+            throw new Exception('setsid fail');
+        }
+
+        // 避免SVR4某些情况下情况下进程会再次获得控制终端
+        // Fork again avoid SVR4 system regain the control of terminal.
         $pid = pcntl_fork();
         if( $pid  < 0 ){
-            exit('fork error');
+            throw new Exception('fork fail');
         } else if( $pid > 0 ) {
             // 主进程退出
-            exit;
+            exit(0);
         }
-        static::initSignal();
     }
 }
