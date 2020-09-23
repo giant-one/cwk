@@ -6,13 +6,13 @@
  * Time: 17:28
  */
 
-namespace System;
+namespace Cwk;
 
 
 class Core
 {
     public static $logFile = '';
-    public static $count = 3;
+    public static $count = 1;
     protected static $version = '1.0.0';
     protected static $_workerIdMap = [];
     protected static $_pidFile = '';
@@ -20,10 +20,15 @@ class Core
     protected static $_startTime = null;
     protected static $_daemon = false;
     protected static $_test = null;
+    protected static $_protocol = '';
+    protected static $_host = '0.0.0.0';
+    protected static $_port = '2345';
+    protected static $_listenSocket = '';
+    protected static $_listenAddr = '';
 
     public function __construct()
     {
-
+        $this->parseSocketAddress();
     }
 
     public static function run()
@@ -111,6 +116,7 @@ class Core
             self::daemonize();
         }
         static::initSignal();
+        static::createListenSocket();
         cli_set_process_title('cwk master process');
         file_put_contents(static::$_pidFile,posix_getpid());
         static::$_pid = posix_getpid();
@@ -158,10 +164,14 @@ class Core
         if ($pid == 0) {
             cli_set_process_title('cwk worker process');
             $workerId = posix_getpid();
-            while (true) {
-                sleep(1);
-                //echo 'worker process '.$workerId.' is running..'.PHP_EOL;
-            }
+            $socket = socket_accept(self::$_listenSocket);
+            $rewData = socket_recv($socket, $content, 20, MSG_WAITALL);
+            echo $content;
+            socket_close($socket);
+//            while (true) {
+//                sleep(1);
+//                //echo 'worker process '.$workerId.' is running..'.PHP_EOL;
+//            }
             exit;
         }
 
@@ -246,5 +256,28 @@ class Core
             // 主进程退出
             exit(0);
         }
+    }
+
+    protected function parseSocketAddress()
+    {
+        if (!self::$_listenAddr) {
+            return;
+        }
+
+        list(self::$_protocol, self::$_host, self::$_port) = explode(":", self::$_listenAddr);
+        self::$_host = str_replace("/", "", self::$_host);
+    }
+
+    /*
+     * @desc : 创建监听socket
+     */
+    private static function createListenSocket(){
+        $listenSocket = socket_create( AF_INET, SOCK_STREAM, SOL_TCP );
+        // 要在bind之前执行，这句是为了解决刚停服后，再次启动时候出现 address already in use 的异常
+        socket_set_option( $listenSocket, SOL_SOCKET, SO_REUSEADDR, 1 );
+        socket_bind( $listenSocket, self::$_host, self::$_port );
+        socket_listen( $listenSocket );
+        //socket_set_nonblock( $listenSocket );
+        self::$_listenSocket = $listenSocket;
     }
 }

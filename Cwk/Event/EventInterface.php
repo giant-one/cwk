@@ -6,7 +6,7 @@
  * Time: 17:51
  */
 
-namespace System\Event;
+namespace Cwk\Event;
 
 
 interface  EventInterface

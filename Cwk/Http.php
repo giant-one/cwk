@@ -6,7 +6,7 @@
  * Time: 19:19
  */
 
-namespace System;
+namespace Cwk;
 
 
 class Http extends Core
@@ -14,8 +14,9 @@ class Http extends Core
     protected $request = null;
     protected $response = null;
 
-    public function __construct()
+    public function __construct($listenAddr)
     {
+        self::$_listenAddr = $listenAddr;
         parent::__construct();
     }
 }
